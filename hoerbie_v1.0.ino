@@ -283,6 +283,7 @@ bool isPlaying() {
 // HTML Functions========================================================================================================================
 //Funktion um die Antworten der HTML Seite auszuwerten
 void handleRestart() {
+  preferences.end();  
   ESP.restart();
 }
 void handleSetup() {
@@ -296,6 +297,7 @@ void handleSetup() {
       Serial.println(server.arg(i));
 
       if (server.argName(i) == "ssid" ) {
+        preferences.clear();
         Serial.print("Speichere SSID: ");
         Serial.println(server.arg(i));
         preferences.putString("SSID", server.arg(i));
