@@ -59,8 +59,8 @@ int setupGyZ = 15000;                                   // Volume
 
 //Webserver
 unsigned long last_color = 0xFFFFFF;
-unsigned int last_Volume;
-unsigned int last_max_Volume;
+unsigned int last_Volume = 13;
+unsigned int last_max_Volume = 20;
 int success2 = 0;
 int success = 0;
 String TimerOFF = "00:00";
@@ -69,7 +69,7 @@ uint8_t TMR_OFF_HH, TMR_OFF_MM, TMR_ON_HH, TMR_ON_MM;
 int TMR_OFF_REP = 0;
 int TMR_ON_REP = 0;
 unsigned int max_Volume = 20;
-unsigned int akt_Volume = 10;
+unsigned int akt_Volume = 13;
 bool TMP_OFFTIME = true;
 bool TMP_ONTIME = true;
 bool WakeUpLight = false;
@@ -872,8 +872,8 @@ void setup() {
   myDFPlayer.begin(mySoftwareSerial, false, true);
 
   myDFPlayer.setTimeOut(500); //Set serial communictaion time out 500ms
-  delay(100);
-  myDFPlayer.volume(10);
+  delay(200);
+  myDFPlayer.volume(akt_Volume);
   delay(100);
   myDFPlayer.EQ(DFPLAYER_EQ_NORMAL);
   delay(100);
@@ -893,6 +893,8 @@ void setup() {
   if (debugBoot) Serial.println(myDFPlayer.readCurrentFileNumber()); //read current play file number
   if (debugBoot) Serial.println(F("readFileCountsInFolder: "));
   if (debugBoot) Serial.println(myDFPlayer.readFileCountsInFolder(3)); //read fill counts in folder SD:/03
+  delay(200);
+  myDFPlayer.volume(akt_Volume);
   delay(200);
   myDFPlayer.playMp3Folder(260);
 
