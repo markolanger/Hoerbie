@@ -23,8 +23,7 @@ Hoerbie - Audiobook
 
 
 
-# # # # 
-Bedienungsanleitung:
+# Bedienungsanleitung:
 
 Zubehör: USB-Kabel, 5 TAG's, davon einer bereits bespielt (farbig)
 Stromversorgung: USB, 5V, 2A
