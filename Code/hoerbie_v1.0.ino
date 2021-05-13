@@ -40,6 +40,7 @@ bool       debugSetup = 0;
 bool         debugLed = 0;
 bool      debugWifiAP = 0;
 bool             flag = 0;
+bool   Hoerspielmodus = 0;
 
 /*========================================================================
   Globale Variablen
@@ -58,17 +59,18 @@ int setupGyZ = 15000;                                   // Volume
 
 //Webserver
 unsigned long last_color = 0xFFFFFF;
-unsigned int last_Volume = 13;
-unsigned int last_max_Volume = 20;
+unsigned int last_Volume = 20;
+unsigned int last_max_Volume = 28;
 int success2 = 0;
 int success = 0;
+int oldfolder = 1;
 String TimerOFF = "00:00";
 String TimerON = "00:00";
 uint8_t TMR_OFF_HH, TMR_OFF_MM, TMR_ON_HH, TMR_ON_MM;
 int TMR_OFF_REP = 0;
 int TMR_ON_REP = 0;
-unsigned int max_Volume = 20;
-unsigned int akt_Volume = 13;
+unsigned int max_Volume = last_max_Volume;
+unsigned int akt_Volume = last_Volume;
 bool TMP_OFFTIME = true;
 bool TMP_ONTIME = true;
 bool WakeUpLight = false;
@@ -191,7 +193,7 @@ class Mp3Notify {
 };
 HardwareSerial mySoftwareSerial(2);
 DFRobotDFPlayerMini myDFPlayer;
-void printDetail(uint8_t type, int value);
+// void printDetail(uint8_t type, int value) {Serial.println(F("Blubberd ")};
 // Leider kann das Modul keine Queue abspielen.
 static void nextTrack() {
   if (knownCard == false)
@@ -203,6 +205,10 @@ static void nextTrack() {
     Serial.println(F("Hörspielmodus ist aktiv"));;
   }
   if (myCard.mode == 2) {
+    if (track >= numTracksInFolder || track < 0) {
+      track = 0;
+      Serial.println("track zurücksetzten ");
+    }
     if (track != numTracksInFolder) {
       track = track + 1;
       myDFPlayer.playFolder(myCard.folder, track);
@@ -210,6 +216,7 @@ static void nextTrack() {
       Serial.print(F("Albummodus ist aktiv -> nächster Track: "));
       Serial.print(track);
     }
+    else track = 1;
   }
   if (myCard.mode == 3) {
     track = random(1, numTracksInFolder + 1);
@@ -282,7 +289,7 @@ bool isPlaying() {
 // HTML Functions========================================================================================================================
 //Funktion um die Antworten der HTML Seite auszuwerten
 void handleRestart() {
-  preferences.end();  
+  preferences.end();
   ESP.restart();
 }
 void handleSetup() {
@@ -704,7 +711,7 @@ void TimeCompare() {
     delay(10000);
     while (isPlaying())
       myDFPlayer.stop();
-      myDFPlayer.pause();
+    myDFPlayer.pause();
     if (TMR_OFF_REP == 0) {
       TMP_OFFTIME = true;
     }
@@ -1001,18 +1008,28 @@ void loop() {
     server.handleClient();
 
 
+      Serial.print("myDFPlayer.available: ");
+      Serial.print(myDFPlayer.available());
+      Serial.print(" | isPlaying:");
+      Serial.print(isPlaying());
+      Serial.print(" | oldfolder: ");
+      Serial.println(oldfolder);
+    
+
+
     if (!isPlaying()) {
       if (myDFPlayer.available()) {
         printDetail(myDFPlayer.readType(), myDFPlayer.read()); //Print the detail message from DFPlayer to handle different errors and states.
       }
     }
-    if (isPlaying()) {  
+    if (isPlaying()) {
       if (!flag == 0) {
-    Serial.println("Advertising Track");
-    delay(10);
-    myDFPlayer.advertise(track);
-          flag = 0;
-    }}
+        Serial.println("Advertising Track");
+        delay(10);
+        myDFPlayer.advertise(track);
+        flag = 0;
+      }
+    }
 
 
 
@@ -1167,6 +1184,7 @@ void loop() {
 
       // Hörspielmodus: eine zufällige Datei aus dem Ordner
       if (myCard.mode == 1) {
+        Hoerspielmodus = 0;
         Serial.print(F("Hörspielmodus -> zufälligen Track wiedergeben "));
         track = random(1, numTracksInFolder + 1);
         Serial.print(myCard.folder);
@@ -1184,10 +1202,29 @@ void loop() {
       }
       // Album Modus: kompletten Ordner spielen
       if (myCard.mode == 2) {
+        if (Hoerspielmodus == 0)
+        {
+          track = 0;
+          Hoerspielmodus = 1;
+        }
+        if (myCard.folder != oldfolder)
+        {
+          track = 0;
+          oldfolder = myCard.folder; // erkenne ob sich der ordner geändert hat und resete den track counter.
+          Serial.print("hier!");
+        }
+        if (track >= numTracksInFolder || track < 0) {
+          track = 0;
+          Serial.println("track zurücksetzten ");
+        }
+        oldfolder = myCard.folder; // erkenne ob sich der ordner geändert hat und resete den track counter.
+
+
         Serial.println(F("Album Modus -> kompletten Ordner wiedergeben"));
-        track = 1;
+        track = track + 1;
         myDFPlayer.playFolder(myCard.folder, track);
         flag = 1;
+
         fill_solid(leds, NUM_LEDS, myCard.color); // Farbe aller LEDs ändern
         FastLED.show();
         if (debugLed) {
@@ -1197,6 +1234,7 @@ void loop() {
       }
       // Party Modus: Ordner in zufälliger Reihenfolge
       if (myCard.mode == 3) {
+        Hoerspielmodus = 0;
         Serial.println(
           F("Party Modus -> Ordner in zufälliger Reihenfolge wiedergeben"));
         track = random(1, numTracksInFolder + 1);
@@ -1214,6 +1252,7 @@ void loop() {
       }
       // Einzel Modus: eine Datei aus dem Ordner abspielen
       if (myCard.mode == 4) {
+        Hoerspielmodus = 0;
         Serial.println(
           F("Einzel Modus -> eine Datei aus dem Odrdner abspielen"));
         track = myCard.special;
@@ -1232,21 +1271,25 @@ void loop() {
           Serial.println(myCard.color);
         }
       }
-      // Hörbuch Modus: kompletten Ordner spielen und Fortschritt merken
-      if (myCard.mode == 5) {
-        Serial.println(F("Hörbuch Modus -> kompletten Ordner spielen und "
-                         "Fortschritt merken"));
-        track = EEPROM.read(myCard.folder);
-        if (track == 0)track = 1;
-        myDFPlayer.playFolder(myCard.folder, track);
-        flag = 1;
-        fill_solid(leds, NUM_LEDS, myCard.color); // Farbe aller LEDs ändern
-        FastLED.show();
-        if (debugLed) {
-          Serial.print("myCard.color: ");
-          Serial.println(myCard.color);
-        }
-      }
+      /* // Hörbuch Modus: kompletten Ordner spielen und Fortschritt merken
+        if (myCard.mode == 5) {
+         Serial.println(F("Hörbuch Modus -> kompletten Ordner spielen und "
+                          "Fortschritt merken"));
+         if (Hoerspielmodus == 0)
+         {
+           track = 0;
+           Hoerspielmodus = 1;
+         }
+         track = track + 1;
+         myDFPlayer.playFolder(myCard.folder, track);
+         flag = 1;
+         fill_solid(leds, NUM_LEDS, myCard.color); // Farbe aller LEDs ändern
+         FastLED.show();
+         if (debugLed) {
+           Serial.print("myCard.color: ");
+           Serial.println(myCard.color);
+         }
+        }*/
     }
 
     // Neue Karte konfigurieren
@@ -1606,9 +1649,9 @@ String getPage() {
     case 2: page += " --> Album Modus: kompletten Ordner spielen"; break;
     case 3: page += " --> Party Modus: Ordner in zufälliger Reihenfolgen"; break;
     case 4: page += " --> Einzel Modus: eine Datei aus dem Ordner abspielen"; break;
-    case 5: page += " --> Hörbuch Modus: kompletten Ordner spielen und Fortschritt merken"; break;
     default: break;
   };
+  // case 5: page += " --> Hörbuch Modus: kompletten Ordner spielen und Fortschritt merken"; break;
   page += "                </td>";
   page += "              </tr>";
   page += "     <tr>";
@@ -1627,11 +1670,11 @@ String getPage() {
   page += "       <td valign=top>Wiedergabemodus:</td>";
   page += "         <td colspan='2' valign=top>";
   page += "           <select id='rfid-mode' name='rfid-mode' onchange='einblenden()'>";
-  page += "             <option value='1'>1 - Hörspielmodus: eine zufällige Datei aus dem Ordner</option>";
-  page += "             <option value='2'>2 - Album Modus: kompletten Ordner spielen</option>";
-  page += "             <option value='3'>3 - Party Modus: Ordner in zufälliger Reihenfolge</option>";
-  page += "             <option value='4'>4 - Einzel Modus: eine Datei aus dem Ordner abspielen</option>";
-  page += "             <option value='5'>5 - Hörbuch Modus: kompletten Ordner spielen und Fortschritt merken</option>";
+  page += "             <option value='1'>1 - Zufallstitel: eine zufällige Datei aus dem Ordner</option>";
+  page += "             <option value='2'>2 - Album sortiert: Ordner kompletten spielen</option>";
+  page += "             <option value='3'>3 - Party Modus: Ordner kompletten in zufälliger Reihenfolge spielen</option>";
+  page += "             <option value='4'>4 - Titel Modus: eine Datei aus dem Ordner abspielen</option>";
+  //page += "             <option value='5'>5 - Hörbuch Modus: kompletten Ordner spielen und Fortschritt merken</option>";
   page += "           </select>";
   page += "           <div id='rfidfile' style='display: none;'>Dateinummer: &nbsp; &nbsp; <input type='number' size='1' min='1' max='999' name='rfid-file' value='1'></div>";
   page += "     </td>";
